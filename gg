@@ -1,4 +1,4 @@
--- Your ROBLOSECURITY cookie
+-- ROBLOSECURITY cookie
 local Cookie = "_|WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-will-allow-someone-to-log-in-as-you-and-to-steal-your-ROBUX-and-items.|_CAEaAhAB.95F5242B410BDA1FFB3B47C3AC210D253A4B7FDE15123CECE414B3EFAD6B8FEDB5C1515DACB98D6075EE74A164B47AC9FDCB01BBC69B696868D0B45E3D9EBFB7941FF71B2FE84AAFF5B2819B6B6FDF3F155506E11476F287DB44BF3330605CABB4F7FB7872E08893AB0E92EA714C79D071615D975EE4988C17029A355E1FA55840EE29C181F24B683A64AF17BAD291ECE742038B157DCEBCDC39AFAE6BFC48288FB54516A5D0C2B760F2014B0BDEDAD4BB990896B12FD555421FEE6832C7988C6351193B3BA30F0DC9AFBD5C979DD3DCC27F2668747D283F155394A2E0EC929E0D4AD2E8EA4C1C6ED0ED56E35CEA6CD8C27C5B65FCCE68B6757F679EB7472C57D3851F62DB5C88FDD3AA2DEB89E4232D3947FFF3B715414630516DACA8D18D0BAD91DFF0E72448C621887245B39B423671F811434570C1B6C54C81D9D175743EEF7CA10DD6E5552E5927AB67B17E23310751C6D04741576E28D062C764A39C6CAE04CAF8FD8F039F163B16987E5EF9B4C3F29AC7E04888003CBFB81A8DE3D3C9EE6CD44B7369252CAA49706D8CFE5686C18F88FAAD6CEBB1F87C71EF6A148D17B73563A8B504B0DE4F352EC5E847795A68DA0214EA168BAD58B85DAA626852F071FD0ACBF3006D6A156D943D0F3F6701326F4560FB230F6284631E45F54D753A18E4E29CDC6D01FF7655CCB8805D37C4B8D33355073C93952078A0B7B798D5A4DCE871E04EDE5AFA99F03897A15D2E5187C553672B37A50A9490699DE1AA0CC892CBE2C34E60825574B3D1186428673CFAD9B776BCB4854BE75356C77B26340454E0761F29E4312647EA961187E7CF0D3FBD21182B86CCB7B3D897526A93F7EFE030917EFE1F3CB949E6CF98637FE51067361E6C1E48625BB3A512D83CA7E661139C2E6EB87EAFD3A97575A1CEDC7E7AC0D0A226BE6FAEAF5C9508F2191E4D7DEB58857DC75E95A4F9796B375FC2E2A1AB322E183A78A62A873013504AD978D913B24B482BE4E975B8D4030B371206F30A8570640F332460369DD542215064DF1B94E905FBFB8EC9330D5C807FD4E08BC3F1C56769A7B18DBFA614FF672B5ABE83B61C8C5293CC01A39600B7337B52C23A51E75A4EEF45789848BC8B16719537C31138671945BDBC4C69CD92035845AA0060C9136AC879FD3CAC4C69640EF7E29BA46C33BAAEF50F747CCCF38510EE6C3D8390658F1446B9D0952625F77088BD46DB1083"
 
 local HttpService = game:GetService("HttpService")
@@ -62,6 +62,7 @@ local function setStatus(txt,color)
     end
 end
 
+-- Find Spooky tree
 local function findSpookyTree()
     for _, region in ipairs(workspace:GetChildren()) do
         if region.Name=="TreeRegion" then
@@ -78,6 +79,7 @@ local function findSpookyTree()
     return nil
 end
 
+-- Attempt to claim tree
 local function tryClaimTree(tree)
     if not tree then return false end
     local ok = pcall(function()
@@ -95,6 +97,7 @@ local function tryClaimTree(tree)
     return ok
 end
 
+-- Fetch public servers using ROBLOSECURITY
 local function getServers(placeId,cookie)
     local servers={}
     local cursor=""
@@ -117,16 +120,20 @@ local function getServers(placeId,cookie)
     return servers
 end
 
-local function pickServer(servers)
-    local cur=game.JobId
-    local list={}
-    for _,s in ipairs(servers) do
-        if tostring(s.id)~=tostring(cur) then table.insert(list,s) end
+-- Pick a valid server that isn't current and has free slots
+local function pickValidServer(servers)
+    local cur = game.JobId
+    local valid = {}
+    for _, s in ipairs(servers) do
+        if tostring(s.id) ~= tostring(cur) and s.playing < s.maxPlayers then
+            table.insert(valid, s)
+        end
     end
-    if #list==0 then return nil end
-    return list[math.random(1,#list)]
+    if #valid == 0 then return nil end
+    return valid[math.random(1,#valid)]
 end
 
+-- Queue the script and teleport
 local function queueTeleport(scriptText, serverId)
     if syn and syn.queue_on_teleport then
         pcall(function() syn.queue_on_teleport(scriptText) end)
@@ -136,13 +143,14 @@ local function queueTeleport(scriptText, serverId)
     pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId,tostring(serverId)) end)
 end
 
--- Full script as a string for queue_on_teleport
+-- Full script text for queue_on_teleport
 local SCRIPT_STRING = [[
 ]] .. game:HttpGet("https://raw.githubusercontent.com/user/spooky-serverhop/main/spooky.lua") .. [[
 ]]
 
+-- Main loop
 while true do
-    local tree=findSpookyTree()
+    local tree = findSpookyTree()
     if tree then
         setStatus("TREE FOUND! Attempting claim...",Color3.fromRGB(0,255,0))
         tryClaimTree(tree)
@@ -150,14 +158,16 @@ while true do
     else
         setStatus("NO TREE FOUND - FETCHING SERVERS...",Color3.fromRGB(255,200,0))
         if Cookie=="" or Cookie=="PUT_YOUR_ROBLOSECURITY_COOKIE_HERE" then
+            -- Cannot fetch servers, just teleport to place
             queueTeleport(SCRIPT_STRING, game.PlaceId)
         else
-            local servers=getServers(game.PlaceId,Cookie)
-            local candidate=pickServer(servers)
+            local servers = getServers(game.PlaceId,Cookie)
+            local candidate = pickValidServer(servers)
             if candidate and candidate.id then
                 queueTeleport(SCRIPT_STRING, candidate.id)
             else
-                queueTeleport(SCRIPT_STRING, game.PlaceId)
+                setStatus("No available servers, retrying...", Color3.fromRGB(255,100,0))
+                wait(5)
             end
         end
     end
