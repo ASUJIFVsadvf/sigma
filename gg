@@ -97,12 +97,13 @@ local function tryClaimTree(tree)
     return ok
 end
 
--- Fetch public servers using ROBLOSECURITY
+-- Fetch public servers
 local function getServers(placeId,cookie)
     local servers={}
     local cursor=""
-    while true do
-        local ok,res=pcall(function()
+    local ok,res
+    repeat
+        ok,res=pcall(function()
             local r
             if syn and syn.request then
                 r=syn.request{Url="https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100&cursor="..cursor,Method="GET",Headers={["Cookie"]=".ROBLOSECURITY="..cookie}}
@@ -111,29 +112,29 @@ local function getServers(placeId,cookie)
             end
             return HttpService:JSONDecode(r.Body)
         end)
-        if not ok or not res then break end
-        if res.data then for _,v in ipairs(res.data) do table.insert(servers,v) end end
-        if not res.nextPageCursor or res.nextPageCursor=="" then break end
-        cursor=res.nextPageCursor
+        if ok and res and res.data then
+            for _,v in ipairs(res.data) do table.insert(servers,v) end
+            cursor = res.nextPageCursor or ""
+        end
         wait(0.1)
-    end
+    until cursor=="" or not ok
     return servers
 end
 
--- Pick a valid server that isn't current and has free slots
-local function pickValidServer(servers)
+-- Pick random server that isn't current
+local function pickRandomServer(servers)
     local cur = game.JobId
-    local valid = {}
+    local list = {}
     for _, s in ipairs(servers) do
-        if tostring(s.id) ~= tostring(cur) and s.playing < s.maxPlayers then
-            table.insert(valid, s)
+        if tostring(s.id) ~= tostring(cur) then
+            table.insert(list,s)
         end
     end
-    if #valid == 0 then return nil end
-    return valid[math.random(1,#valid)]
+    if #list==0 then return nil end
+    return list[math.random(1,#list)]
 end
 
--- Queue the script and teleport
+-- Queue teleport
 local function queueTeleport(scriptText, serverId)
     if syn and syn.queue_on_teleport then
         pcall(function() syn.queue_on_teleport(scriptText) end)
@@ -156,19 +157,14 @@ while true do
         tryClaimTree(tree)
         break
     else
-        setStatus("NO TREE FOUND - FETCHING SERVERS...",Color3.fromRGB(255,200,0))
-        if Cookie=="" or Cookie=="PUT_YOUR_ROBLOSECURITY_COOKIE_HERE" then
-            -- Cannot fetch servers, just teleport to place
-            queueTeleport(SCRIPT_STRING, game.PlaceId)
+        setStatus("NO TREE FOUND - JOINING RANDOM SERVER...", Color3.fromRGB(255,200,0))
+        local servers = getServers(game.PlaceId,Cookie)
+        local candidate = pickRandomServer(servers)
+        if candidate and candidate.id then
+            queueTeleport(SCRIPT_STRING, candidate.id)
         else
-            local servers = getServers(game.PlaceId,Cookie)
-            local candidate = pickValidServer(servers)
-            if candidate and candidate.id then
-                queueTeleport(SCRIPT_STRING, candidate.id)
-            else
-                setStatus("No available servers, retrying...", Color3.fromRGB(255,100,0))
-                wait(5)
-            end
+            -- If no servers found, just teleport to any public server (will pick random)
+            queueTeleport(SCRIPT_STRING, game.PlaceId)
         end
     end
     wait(1)
