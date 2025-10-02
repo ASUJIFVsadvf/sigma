@@ -1,0 +1,165 @@
+-- Your ROBLOSECURITY cookie
+local Cookie = "PUT_YOUR_ROBLOSECURITY_COOKIE_HERE"
+
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+-- GUI setup
+local function makeGui()
+    pcall(function()
+        local old = CoreGui:FindFirstChild("SpookFinderGui")
+        if old then old:Destroy() end
+    end)
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "SpookFinderGui"
+    ScreenGui.Parent = CoreGui
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0,320,0,160)
+    Frame.Position = UDim2.new(0,50,0.7,0)
+    Frame.BackgroundColor3 = Color3.fromRGB(54,57,64)
+    Frame.BackgroundTransparency = 0.06
+    Frame.BorderSizePixel = 0
+    Frame.Parent = ScreenGui
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1,0,0,28)
+    Title.Position = UDim2.new(0,0,0,0)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Spook Finder"
+    Title.Font = Enum.Font.GothamBlack
+    Title.TextSize = 20
+    Title.TextColor3 = Color3.new(1,1,1)
+    Title.Parent = Frame
+    local Status = Instance.new("TextLabel")
+    Status.Size = UDim2.new(1,-20,0,60)
+    Status.Position = UDim2.new(0,10,0,34)
+    Status.BackgroundTransparency = 1
+    Status.TextWrapped = true
+    Status.Text = "INITIALIZING..."
+    Status.Font = Enum.Font.GothamBlack
+    Status.TextSize = 18
+    Status.TextColor3 = Color3.fromRGB(255,255,0)
+    Status.Parent = Frame
+    local Discord = Instance.new("TextLabel")
+    Discord.Size = UDim2.new(1,0,0,20)
+    Discord.Position = UDim2.new(0,0,0.78,0)
+    Discord.BackgroundTransparency = 1
+    Discord.Text = "discord.gg/starv3"
+    Discord.Font = Enum.Font.GothamBlack
+    Discord.TextSize = 14
+    Discord.TextColor3 = Color3.new(1,1,1)
+    Discord.Parent = Frame
+    return Status
+end
+
+local statusLabel = makeGui()
+local function setStatus(txt,color)
+    if statusLabel and statusLabel.Parent then
+        statusLabel.Text = txt
+        if color then statusLabel.TextColor3 = color end
+    end
+end
+
+local function findSpookyTree()
+    for _, region in ipairs(workspace:GetChildren()) do
+        if region.Name=="TreeRegion" then
+            for _, candidate in ipairs(region:GetChildren()) do
+                local treeClass = candidate:FindFirstChild("TreeClass")
+                local owner = candidate:FindFirstChild("Owner")
+                if treeClass and treeClass.Value=="Spooky" and owner and owner.Value==nil then
+                    return candidate
+                end
+            end
+        end
+        RunService.Heartbeat:Wait()
+    end
+    return nil
+end
+
+local function tryClaimTree(tree)
+    if not tree then return false end
+    local ok = pcall(function()
+        local rep = game:GetService("ReplicatedStorage")
+        if rep:FindFirstChild("Interaction") then
+            local int = rep.Interaction
+            if int:FindFirstChild("ClientIsDragging") then
+                int.ClientIsDragging:FireServer(tree)
+            end
+            if int:FindFirstChild("ClientRequestOwnership") then
+                int.ClientRequestOwnership:FireServer(tree)
+            end
+        end
+    end)
+    return ok
+end
+
+local function getServers(placeId,cookie)
+    local servers={}
+    local cursor=""
+    while true do
+        local ok,res=pcall(function()
+            local r
+            if syn and syn.request then
+                r=syn.request{Url="https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100&cursor="..cursor,Method="GET",Headers={["Cookie"]=".ROBLOSECURITY="..cookie}}
+            elseif request then
+                r=request{Url="https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100&cursor="..cursor,Method="GET",Headers={["Cookie"]=".ROBLOSECURITY="..cookie}}
+            end
+            return HttpService:JSONDecode(r.Body)
+        end)
+        if not ok or not res then break end
+        if res.data then for _,v in ipairs(res.data) do table.insert(servers,v) end end
+        if not res.nextPageCursor or res.nextPageCursor=="" then break end
+        cursor=res.nextPageCursor
+        wait(0.1)
+    end
+    return servers
+end
+
+local function pickServer(servers)
+    local cur=game.JobId
+    local list={}
+    for _,s in ipairs(servers) do
+        if tostring(s.id)~=tostring(cur) then table.insert(list,s) end
+    end
+    if #list==0 then return nil end
+    return list[math.random(1,#list)]
+end
+
+local function queueTeleport(scriptText, serverId)
+    if syn and syn.queue_on_teleport then
+        pcall(function() syn.queue_on_teleport(scriptText) end)
+    elseif queue_on_teleport then
+        pcall(function() queue_on_teleport(scriptText) end)
+    end
+    pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId,tostring(serverId)) end)
+end
+
+-- Full script as a string for queue_on_teleport
+local SCRIPT_STRING = [[
+]] .. game:HttpGet("https://raw.githubusercontent.com/user/spooky-serverhop/main/spooky.lua") .. [[
+]]
+
+while true do
+    local tree=findSpookyTree()
+    if tree then
+        setStatus("TREE FOUND! Attempting claim...",Color3.fromRGB(0,255,0))
+        tryClaimTree(tree)
+        break
+    else
+        setStatus("NO TREE FOUND - FETCHING SERVERS...",Color3.fromRGB(255,200,0))
+        if Cookie=="" or Cookie=="PUT_YOUR_ROBLOSECURITY_COOKIE_HERE" then
+            queueTeleport(SCRIPT_STRING, game.PlaceId)
+        else
+            local servers=getServers(game.PlaceId,Cookie)
+            local candidate=pickServer(servers)
+            if candidate and candidate.id then
+                queueTeleport(SCRIPT_STRING, candidate.id)
+            else
+                queueTeleport(SCRIPT_STRING, game.PlaceId)
+            end
+        end
+    end
+    wait(1)
+end
